@@ -37,7 +37,7 @@ conda env create -f env.yaml
 conda activate ForceFlowAb
 ```
 
-Before running an experiment, place the required SAbDab-derived data under `data/` and update the dataset paths in the selected YAML configuration. Data files are intentionally excluded from version control.
+The repository includes `data/sabdab_summary_all.tsv`, a snapshot of the SAbDab index used by the example configurations. Download the corresponding antibody structure files separately, place them under `data/`, and update the dataset paths in the selected YAML configuration. Large structure datasets remain excluded from version control.
 
 ## Training
 
@@ -137,6 +137,10 @@ The docking workflow uses HDOCK from Professor Sheng-You Huang's group at the Sc
 > Wu, J. *et al.* FlowDesign: Improved design of antibody CDRs through flow matching and better prior distributions. *Cell Systems* **16**, 101270 (2025). [https://doi.org/10.1016/j.cels.2025.101270](https://doi.org/10.1016/j.cels.2025.101270)
 
 > Yan, Y., Zhang, D., Zhou, P., Li, B. & Huang, S.-Y. HDOCK: a web server for protein-protein and protein-DNA/RNA docking based on a hybrid strategy. *Nucleic Acids Research* **45**, W365-W373 (2017). [https://doi.org/10.1093/nar/gkx407](https://doi.org/10.1093/nar/gkx407)
+
+## License
+
+The original ForceFlowAb source code is released under the [MIT License](LICENSE). Third-party code, bundled HDOCK executables, and SAbDab-derived metadata are not relicensed by this repository and remain subject to their respective licenses and terms of use.
 
 ## Citation
 
