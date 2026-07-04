@@ -1,0 +1,57 @@
+# Local documentation and notes
+USE.md
+
+# Datasets and generated artifacts
+data/
+logs/
+results/
+checkpoints/
+trained_models/
+
+# Only publish the MoE inference configurations under configs/test
+configs/test/*
+!configs/test/moe/
+!configs/test/moe/**
+
+# Only publish the primary two-stage training configurations
+configs/train/*
+!configs/train/codesign_muti_rectflow_RF.yml
+!configs/train/codesign_muti_rectflow_finetune_RF.yml
+
+# Model checkpoints and experiment outputs
+*.pt
+*.pth
+*.ckpt
+events.out.tfevents.*
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*~
