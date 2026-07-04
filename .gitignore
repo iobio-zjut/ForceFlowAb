@@ -1,8 +1,9 @@
 # Local documentation and notes
 USE.md
 
-# Datasets and generated artifacts
-data/
+# Dataset artifacts (keep the lightweight SAbDab index in Git)
+data/*
+!data/sabdab_summary_all.tsv
 logs/
 results/
 checkpoints/
