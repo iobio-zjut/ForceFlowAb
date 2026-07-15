@@ -1,0 +1,29 @@
+mode: multiple_cdrs
+model:
+  checkpoint: ./trained_models/checkpoint_best.pt
+
+
+
+sampling:
+  seed: 2022
+  sample_structure: true
+  sample_sequence: true
+  cdrs:
+    - H_CDR3
+  num_samples: 32
+  single: true
+  multi: false
+  scope: 0.4
+  energy_guidance:
+    enabled: false
+    start_step: 69
+    end_step: 79
+    warmup_steps: 0
+
+dataset:
+  test:
+    type: sabdab
+    summary_path: ./data/sabdab_summary_all.tsv
+    chothia_dir: ./data/all_structures/chothia
+    processed_dir: ./data/processed_RF
+    split: test

@@ -9,10 +9,10 @@ results/
 checkpoints/
 trained_models/
 
-# Only publish the MoE inference configurations under configs/test
+# Publish the inference configurations used by the helper scripts
 configs/test/*
-!configs/test/moe/
-!configs/test/moe/**
+!configs/test/H3.yml
+!configs/test/multicdrs.yml
 
 # Only publish the primary two-stage training configurations
 configs/train/*
