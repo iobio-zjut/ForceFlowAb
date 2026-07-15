@@ -1,32 +1,23 @@
 import torch
 from madrax.ForceField import ForceField
-# from madrax.ForceFieldLZH import ForceField
 from madrax import dataStructures
-# -----------------------------
-# 1) lambda 调度（推理阶段用）
-# -----------------------------
+
+
+
+
+
 def lambda_schedule(t, T, max_lambda=0.2, p=2.0, tail_drop=0.1):
-    """
-    t: 当前时间步（整数，通常从 T-1 递减到 0）
-    T: 总步数
-    返回 λ_t：前期小、逐步增大，最后 tail_drop*100% 再线性降到 0，避免后期“猛拽”。
-    """
-    # 归一化到 0->1，越靠后越大
     x = 1.0 - (t / float(T))
     lam = max_lambda * (x ** p)
-    # 最后 tail_drop 比例（默认 10%）线性降回 0
     if x > (1.0 - tail_drop):
         lam *= (1.0 - (x - (1.0 - tail_drop)) / tail_drop)
     return float(lam)
 
-# --------------------------------------------------------
-# 4) 主类：读取 16 个 pdb → MadraX → 只对 A/B 链 CDR 区计算能量 & 返回 Cα 梯度
-# --------------------------------------------------------
+
+
 class EnergyGuidance:
     def __init__(self, device="cuda:1", use_weighted_backbone_terms=True):
         """
-        use_weighted_backbone_terms=True: 仅保留对骨架可信的能量项（权重见 _energy_weights）
-        False: 直接对 11 项等权求和
         """
         self.device = device
         self.ff = ForceField(device=device)
@@ -38,23 +29,8 @@ class EnergyGuidance:
     
     @staticmethod
     def _energy_weights(device):
-        # 索引对应关系：
-        # 0:SS (二级结构)
-        # 1:HB (氢键) -> 保留，促进形成螺旋/折叠
-        # 2:Elec (静电) -> 关掉，侧链电荷未定义
-        # 3:VDW_Clash (严重碰撞) -> 关掉！防止因为没有侧链而爆炸
-        # 4:Polar (极性) -> 关掉
-        # 5:Hydrophobic (疏水) -> 关掉
-        # 6:VDW (范德华) -> 关掉
-        # 7:BB_Ent (骨架熵/Rama图) -> 保留，保证骨架角度自然
-        # 8:SC_Ent (侧链熵) -> 关掉
-        # 9:Peptide (肽键约束) -> 保留，保证连接处不扭曲
-        # 10:Rotamer (侧链构象) -> 关掉
-        
-        # 修改后的权重：只留 1, 7, 9
         w = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.1, 0.0]
         
-        # 注意：BB_Ent 有时数值较大，可以给 0.5 或 0.1，具体看梯度大小
         return torch.tensor(w, device=device, dtype=torch.float32)
 
     @staticmethod
@@ -82,7 +58,6 @@ class EnergyGuidance:
 
     def _calc_ca_repulsion(self, coords, mask_atom, min_dist=3.5):
         """
-        修正版 v2：自动处理 coords 和 mask_atom 长度不一致的问题
         """
         L = min(coords.shape[1], mask_atom.shape[1])
         ca_bool = mask_atom[0, :L, 0].bool()
