@@ -142,7 +142,7 @@ def generate_cdr_mask(model, chain_map):#三个维度顺序从H L AG
 
     return mask_tensor, masks[:len(order)], model, CDR_H, CDR_L, cdr_h_lengths, cdr_l_lengths
 
-def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L):#按pdb顺序来的
+def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L):
     if isinstance(atnames[0], list):
         atnames = atnames[0]
     N = len(atnames)
