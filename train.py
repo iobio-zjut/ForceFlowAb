@@ -80,7 +80,7 @@ if __name__ == '__main__':
     
     # Variable for Early Stopping
     best_val_loss = float('inf')
-    patience = 30      # 【自定义】耐心值：如果在 20 次验证中 loss 都没有下降，则停止训练
+    patience = 30      # 
     patience_counter = 0
 
     # Resume
@@ -95,7 +95,6 @@ if __name__ == '__main__':
         optimizer.load_state_dict(ckpt['optimizer'])
         logger.info('Resuming scheduler states...')
         scheduler.load_state_dict(ckpt['scheduler'])
-        # 尝试从 checkpoint 中恢复 best_val_loss，如果旧模型没有这个键，则保持 inf
         if 'best_val_loss' in ckpt:
             best_val_loss = ckpt['best_val_loss']
             logger.info(f'Resuming best validation loss: {best_val_loss:.4f}')
@@ -187,11 +186,9 @@ if __name__ == '__main__':
                     best_val_loss = avg_val_loss
                     patience_counter = 0 
                     
-                    # 更新 state_dict 中的 best_val_loss 为当前值
                     state_dict['best_val_loss'] = best_val_loss 
                     
                     if not args.debug:
-                        # 保存最佳模型，覆盖 checkpoint_best.pt
                         best_ckpt_path = os.path.join(ckpt_dir, 'checkpoint_best.pt')
                         torch.save(state_dict, best_ckpt_path)
                         logger.info(f'[Improvement] New best model saved to {best_ckpt_path} | Loss: {best_val_loss:.6f}')
@@ -199,12 +196,6 @@ if __name__ == '__main__':
                     patience_counter += 1
                     logger.info(f'[No Improvement] Patience: {patience_counter}/{patience} | Best Loss: {best_val_loss:.6f}')
 
-                # # 3. 依然保存按 iteration 命名的常规 checkpoint (可选，如果不需要保留历史可以注释掉)
-                # if not args.debug:
-                #     ckpt_path = os.path.join(ckpt_dir, '%d.pt' % it)
-                #     torch.save(state_dict, ckpt_path)
-
-                # 4. 检查是否触发早停
                 if patience_counter >= patience:
                     logger.info(f'Early stopping triggered! No improvement for {patience} validation steps.')
                     break
