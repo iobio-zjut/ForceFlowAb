@@ -48,6 +48,16 @@ def _normalize_key(value):
     return str(value).strip().lower().replace("-", "_")
 
 
+def _split_region_values(value):
+    if isinstance(value, (list, tuple)):
+        raw_parts = []
+        for item in value:
+            raw_parts.extend(str(item).replace(";", ",").split(","))
+    else:
+        raw_parts = str(value).replace(";", ",").split(",")
+    return [_normalize_key(part) for part in raw_parts if str(part).strip()]
+
+
 class DesignJobRequest(BaseModel):
     type: str = "antibody"
     region: str = "all"
@@ -73,14 +83,23 @@ class DesignJobRequest(BaseModel):
 
     @validator("region", pre=True)
     def normalize_region(cls, value):
-        key = _normalize_key(value)
-        if key not in REGION_ALIASES:
-            raise ValueError("region must be one of all, H1, H2, H3, L1, L2, L3")
-        return REGION_ALIASES[key]
+        regions = []
+        for key in _split_region_values(value):
+            if key not in REGION_ALIASES:
+                raise ValueError("region must be all or a comma-separated list of H1, H2, H3, L1, L2, L3")
+            normalized = REGION_ALIASES[key]
+            if normalized not in regions:
+                regions.append(normalized)
+        if not regions:
+            raise ValueError("region must not be empty")
+        if "all" in regions and len(regions) > 1:
+            raise ValueError("region=all cannot be combined with other CDR regions")
+        return ",".join(regions)
 
     @validator("region")
     def validate_region_for_type(cls, region, values):
-        if values.get("type") == "nanobody" and region in {"l1", "l2", "l3"}:
+        regions = set(region.split(","))
+        if values.get("type") == "nanobody" and regions.intersection({"l1", "l2", "l3"}):
             raise ValueError("nanobody design does not support L1/L2/L3")
         return region
 
