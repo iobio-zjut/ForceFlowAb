@@ -34,13 +34,13 @@ dry_run="false"
 usage() {
   cat <<'EOF'
 Usage:
-  ./DP.sh --type nanobody|antibody --region h3|all --pdb /path/input.pdb [options]
+  ./DP.sh --type nanobody|antibody --region h1|h2|h3|l1|l2|l3|all --pdb /path/input.pdb [options]
 
 Options:
   --heavy ID             Heavy chain ID. Omit or use auto for auto-infer.
   --light ID|none        Light chain ID. Use none for nanobody/no light chain.
   --batch-size N         Batch size passed to design_for_pdb. Default: 8
-  --num-samples N        sampling.num_samples in generated config. Default: 8
+  --num-samples N        sampling.num_samples in generated config. Default: 8, max: 8
   --job-id ID            Job ID. Default: job_YYYYmmdd_HHMMSS_PID
   --jobs-root DIR        Root directory for jobs. Default: ./jobs
   --out DIR              Explicit job directory. Default: JOBS_ROOT/JOB_ID
@@ -99,10 +99,30 @@ case "$ab_type" in
 esac
 
 case "$region" in
-  h3|cdrh3) region="h3" ;;
+  h1|h_cdr1|hcdr1|cdrh1) region="h1"; region_cdr="H_CDR1" ;;
+  h2|h_cdr2|hcdr2|cdrh2) region="h2"; region_cdr="H_CDR2" ;;
+  h3|h_cdr3|hcdr3|cdrh3) region="h3"; region_cdr="H_CDR3" ;;
+  l1|l_cdr1|lcdr1|cdrl1) region="l1"; region_cdr="L_CDR1" ;;
+  l2|l_cdr2|lcdr2|cdrl2) region="l2"; region_cdr="L_CDR2" ;;
+  l3|l_cdr3|lcdr3|cdrl3) region="l3"; region_cdr="L_CDR3" ;;
   all|allcdr|all_cdr|multiple_cdrs) region="all" ;;
-  *) echo "--region must be h3 or all" >&2; exit 2 ;;
+  *) echo "--region must be one of h1, h2, h3, l1, l2, l3, all" >&2; exit 2 ;;
 esac
+
+if [[ "$ab_type" == "nanobody" && "$region" =~ ^l[123]$ ]]; then
+  echo "Nanobody design does not support light-chain regions: $region" >&2
+  exit 2
+fi
+
+if ! [[ "$num_samples" =~ ^[0-9]+$ ]] || (( num_samples < 1 || num_samples > 8 )); then
+  echo "--num-samples must be an integer between 1 and 8" >&2
+  exit 2
+fi
+
+if ! [[ "$batch_size" =~ ^[0-9]+$ ]] || (( batch_size < 1 )); then
+  echo "--batch-size must be a positive integer" >&2
+  exit 2
+fi
 
 if [[ -z "$pdb_path" ]]; then
   echo "--pdb is required" >&2
@@ -114,7 +134,7 @@ if [[ ! -f "$pdb_path" ]]; then
   exit 1
 fi
 
-if [[ "$region" == "h3" ]]; then
+if [[ "$region" != "all" ]]; then
   base_config="./configs/test/H3.yml"
 elif [[ "$ab_type" == "nanobody" ]]; then
   base_config="./configs/test/nanobody.yml"
@@ -212,11 +232,11 @@ with open(path, "w") as f:
     json.dump(data, f, indent=2)
 PY
 
-"$PYTHON" - "$base_config" "$run_config" "$num_samples" "$energy" "$energy_start" "$energy_end" "$energy_warmup" <<'PY'
+"$PYTHON" - "$base_config" "$run_config" "$num_samples" "$energy" "$energy_start" "$energy_end" "$energy_warmup" "$ab_type" "$region" "${region_cdr:-}" <<'PY'
 import sys
 import yaml
 
-base_config, run_config, num_samples, energy, start_step, end_step, warmup_steps = sys.argv[1:]
+base_config, run_config, num_samples, energy, start_step, end_step, warmup_steps, ab_type, region, region_cdr = sys.argv[1:]
 with open(base_config) as f:
     cfg = yaml.safe_load(f)
 
@@ -224,6 +244,13 @@ cfg.setdefault("sampling", {})
 cfg["sampling"]["num_samples"] = int(num_samples)
 cfg["sampling"].pop("single", None)
 cfg["sampling"].pop("multi", None)
+if region == "all":
+    if ab_type == "nanobody":
+        cfg["sampling"]["cdrs"] = ["H_CDR1", "H_CDR2", "H_CDR3"]
+    else:
+        cfg["sampling"]["cdrs"] = ["H_CDR1", "H_CDR2", "H_CDR3", "L_CDR1", "L_CDR2", "L_CDR3"]
+else:
+    cfg["sampling"]["cdrs"] = [region_cdr]
 
 eg = cfg["sampling"].setdefault("energy_guidance", {})
 eg["enabled"] = energy == "true"
