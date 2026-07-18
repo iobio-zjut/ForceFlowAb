@@ -3,7 +3,7 @@ import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 from .schemas import DesignJobRequest
 
@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_JOBS_ROOT = PROJECT_ROOT / "jobs"
 JOBS_ROOT = Path(os.environ.get("FLOWDESIGN_JOBS_ROOT", DEFAULT_JOBS_ROOT)).resolve()
 DP_SCRIPT = PROJECT_ROOT / "DP.sh"
+SAFE_UPLOAD_SUFFIXES = {".pdb", ".ent"}
 
 
 def _now() -> str:
@@ -38,9 +39,17 @@ def _write_json(path: Path, data: Dict) -> None:
     os.replace(tmp_path, path)
 
 
-def submit_job(request: DesignJobRequest) -> Dict:
-    if not Path(request.pdb).is_file():
-        raise FileNotFoundError(f"Input PDB not found: {request.pdb}")
+def _safe_upload_name(filename: str) -> str:
+    name = Path(filename or "input.pdb").name
+    if not name:
+        name = "input.pdb"
+    suffix = Path(name).suffix.lower()
+    if suffix not in SAFE_UPLOAD_SUFFIXES:
+        name = f"{name}.pdb"
+    return name
+
+
+def submit_job(request: DesignJobRequest, uploaded_file: Optional[Tuple[str, bytes]] = None) -> Dict:
     if not DP_SCRIPT.is_file():
         raise FileNotFoundError(f"DP.sh not found: {DP_SCRIPT}")
 
@@ -55,12 +64,28 @@ def submit_job(request: DesignJobRequest) -> Dict:
     run_log = job_dir / "run.log"
     config_yml = job_dir / "config.yml"
 
+    uploaded_filename = None
+    if uploaded_file is not None:
+        original_name, content = uploaded_file
+        if not content:
+            raise ValueError("Uploaded PDB file is empty")
+        upload_dir = job_dir / "input"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        uploaded_filename = _safe_upload_name(original_name)
+        pdb_path = upload_dir / uploaded_filename
+        with open(pdb_path, "wb") as handle:
+            handle.write(content)
+        request.pdb = str(pdb_path)
+    elif not Path(request.pdb).is_file():
+        raise FileNotFoundError(f"Input PDB not found: {request.pdb}")
+
     request_data = request.dict()
     request_data.update(
         {
             "job_id": job_id,
             "job_dir": str(job_dir),
             "results_dir": str(results_dir),
+            "uploaded_filename": uploaded_filename,
             "created_at": _now(),
         }
     )
