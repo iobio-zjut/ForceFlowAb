@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-ENV_DIR="${FLOWDESIGN_ENV_DIR:-/home/data/Public_tools/anaconda3/envs/diffab}"
+ENV_DIR="${FLOWDESIGN_ENV_DIR:-/home/data/Public_tools/anaconda3/envs/ForceFlowAb}"
 if [[ -x "$ENV_DIR/bin/python" ]]; then
   export PATH="$ENV_DIR/bin:$PATH"
   PYTHON="$ENV_DIR/bin/python"
