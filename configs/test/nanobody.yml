@@ -9,6 +9,8 @@ sampling:
   sample_structure: true
   sample_sequence: true
   cdrs:
+    - H_CDR1
+    - H_CDR2
     - H_CDR3
   num_samples: 32
   scope: 0.4

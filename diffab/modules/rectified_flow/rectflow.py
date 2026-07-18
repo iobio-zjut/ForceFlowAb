@@ -417,6 +417,7 @@ class RectFlowGenerator(nn.Module):
         p_template=None, s_template=None, mask_template_generate=None,fragment_type=None,batch_ref=None, batch_id=None, data_cropped=None, data_variant=None, log_dir=None, tag=None,
         single=False,multi=True,scope=0.2,give_energy=True,
         energy_guidance=False, energy_guidance_start_step=90, energy_guidance_end_step=99, energy_guidance_warmup_steps=0,
+        energy_guidance_chains=None, energy_guidance_cdrs=None,
         trace_moe=False, trace_moe_step=99, trace_moe_csv=None, trace_moe_max_tokens=4096,
     ):
         N, L = p.shape[:2]
@@ -582,7 +583,8 @@ class RectFlowGenerator(nn.Module):
             rotation_guidance_step = None  # 410
             if guidance_active:
                 grads_batch, grads_list, meta_list, h3_ranges = run_energy_guidance(  # 410
-                    batch_id, traj_save_dir, t, batch_size=p_t.shape[0], device="cuda"  # 410
+                    batch_id, traj_save_dir, t, batch_size=p_t.shape[0], device="cuda",
+                    selected_chains=energy_guidance_chains, selected_cdrs=energy_guidance_cdrs  # 410
                 )
                 drift_step = dt * vel_pos  # 410
                 p_next = p_t + drift_step  # 410
@@ -596,11 +598,21 @@ class RectFlowGenerator(nn.Module):
                     end_step=energy_guidance_end_step,
                     warmup_steps=energy_guidance_warmup_steps,
                 ).to(p_t.device)  # 410
-                target_force, target_torque = self._prepare_guidance_vectors(grads_batch, h3_ranges, single)  # 410
+                use_legacy_h3_slice = single and energy_guidance_cdrs is None  # 410
+                target_force, target_torque = self._prepare_guidance_vectors(grads_batch, h3_ranges, use_legacy_h3_slice)  # 410
                 target_force = target_force.to(p_t.device)  # 410
                 target_torque = target_torque.to(p_t.device)  # 410
 
-                mode_name = "CDR-H3 Only" if single else "All CDRs"  # 410
+                expected_count = int(mask_generate.sum().item())  # 410
+                if target_force.shape[0] != expected_count:  # 410
+                    raise RuntimeError(  # 410
+                        "Energy guidance gradient count mismatch: "
+                        f"got {target_force.shape[0]} CDR CA gradients but mask_generate has {expected_count} residues. "
+                        f"selected_chains={energy_guidance_chains}, selected_cdrs={energy_guidance_cdrs}, "
+                        f"single={single}, batch_id={batch_id}, step={t}."
+                    )
+
+                mode_name = ",".join(energy_guidance_cdrs) if energy_guidance_cdrs else ("CDR-H3 Only" if single else "All CDRs")  # 410
                 guidance_step = - target_force * drift_norm * lam  # 410
 
                 tnorm = torch.norm(target_torque, dim=-1, keepdim=True) + 1e-8  # 410

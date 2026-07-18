@@ -13,6 +13,7 @@ trained_models/
 configs/test/*
 !configs/test/H3.yml
 !configs/test/multicdrs.yml
+!configs/test/nanobody.yml
 
 # Only publish the primary two-stage training configurations
 configs/train/*

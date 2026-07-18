@@ -22,6 +22,118 @@ CDR_L = [(24, 34), (50, 56), (89, 97)]
 CHAIN_TYPE_ORDER = ("H", "L", "Ag")
 RING_RESIDUES = {"PHE", "TYR"}
 R_C_ATOMS = {"CD1", "CE2"}
+CDR_ALIASES = {
+    "H1": "H_CDR1",
+    "H_CDR1": "H_CDR1",
+    "HCDR1": "H_CDR1",
+    "CDRH1": "H_CDR1",
+    "H2": "H_CDR2",
+    "H_CDR2": "H_CDR2",
+    "HCDR2": "H_CDR2",
+    "CDRH2": "H_CDR2",
+    "H3": "H_CDR3",
+    "H_CDR3": "H_CDR3",
+    "HCDR3": "H_CDR3",
+    "CDRH3": "H_CDR3",
+    "L1": "L_CDR1",
+    "L_CDR1": "L_CDR1",
+    "LCDR1": "L_CDR1",
+    "CDRL1": "L_CDR1",
+    "L2": "L_CDR2",
+    "L_CDR2": "L_CDR2",
+    "LCDR2": "L_CDR2",
+    "CDRL2": "L_CDR2",
+    "L3": "L_CDR3",
+    "L_CDR3": "L_CDR3",
+    "LCDR3": "L_CDR3",
+    "CDRL3": "L_CDR3",
+}
+
+
+def _normalize_chain_id(chain_id):
+    if chain_id is None:
+        return None
+    chain_id = str(chain_id).strip()
+    if chain_id == "" or chain_id.lower() in {"none", "null", "-"}:
+        return None
+    return chain_id
+
+
+def _normalize_selected_chains(selected_chains):
+    if not selected_chains:
+        return None
+    if isinstance(selected_chains, dict):
+        heavy = selected_chains.get("heavy")
+        light = selected_chains.get("light")
+    elif isinstance(selected_chains, (tuple, list)):
+        heavy = selected_chains[0] if len(selected_chains) > 0 else None
+        light = selected_chains[1] if len(selected_chains) > 1 else None
+    else:
+        heavy, light = selected_chains, None
+
+    heavy = _normalize_chain_id(heavy)
+    light = _normalize_chain_id(light)
+    if heavy is None and light is None:
+        return None
+    return {"heavy": heavy, "light": light}
+
+
+def _apply_selected_chains(chain_map, selected_chains):
+    selected_chains = _normalize_selected_chains(selected_chains)
+    if selected_chains is None:
+        return chain_map
+
+    heavy = selected_chains["heavy"]
+    light = selected_chains["light"]
+    filtered = {}
+    for cid in chain_map:
+        if heavy is not None and cid == heavy:
+            filtered[cid] = "H"
+        elif light is not None and cid == light:
+            filtered[cid] = "L"
+        else:
+            filtered[cid] = "Ag"
+    return filtered
+
+
+def _normalize_selected_cdrs(selected_cdrs):
+    if selected_cdrs is None:
+        return None
+    if isinstance(selected_cdrs, str):
+        raw_cdrs = selected_cdrs.replace(",", " ").split()
+    else:
+        raw_cdrs = selected_cdrs
+
+    normalized = set()
+    for cdr in raw_cdrs:
+        key = str(cdr).strip().upper().replace("-", "_")
+        if not key:
+            continue
+        if key in CDR_ALIASES:
+            normalized.add(CDR_ALIASES[key])
+        else:
+            raise ValueError(f"Unsupported CDR name for energy guidance: {cdr!r}")
+    return normalized if normalized else None
+
+
+def _cdr_name(chain_type, cdr_idx):
+    return f"{chain_type}_CDR{cdr_idx + 1}"
+
+
+def _residue_cdr_index(residue, chain_type, selected_cdrs=None):
+    if chain_type == "H":
+        cdrs = CDR_H
+    elif chain_type == "L":
+        cdrs = CDR_L
+    else:
+        return None
+
+    num, ins = residue.id[1], residue.id[2].strip()
+    for cdr_idx, (start, end) in enumerate(cdrs):
+        in_range = (start <= num <= end) or (num == end and ins) or (num == start and ins)
+        if in_range and (selected_cdrs is None or _cdr_name(chain_type, cdr_idx) in selected_cdrs):
+            return cdr_idx
+    return None
 
 def get_sequence(chain):
     residues = Selection.unfold_entities(chain, 'R')
@@ -106,7 +218,8 @@ def reorder_and_renumber_pdb(structure_source, chain_map):
     return new_chain_map, reordered_model, renum_model
 
 
-def generate_cdr_mask(model, chain_map):#三个维度顺序从H L AG
+def generate_cdr_mask(model, chain_map, selected_cdrs=None):#三个维度顺序从H L AG
+    selected_cdrs = _normalize_selected_cdrs(selected_cdrs)
     normalized_chain_map = {cid: ('L' if tp == 'K' else tp) for cid, tp in chain_map.items()}
     order = [cid for t in CHAIN_TYPE_ORDER for cid, tp in normalized_chain_map.items() if tp == t]
 
@@ -119,18 +232,14 @@ def generate_cdr_mask(model, chain_map):#三个维度顺序从H L AG
         res = list(chain.get_residues())
         mask = torch.zeros(len(res), 1, dtype=torch.float32)
         if tp in ('H', 'L'):
-            cdrs = CDR_H if tp == 'H' else CDR_L
             for i, r in enumerate(res):
-                num, ins = r.id[1], r.id[2].strip()
-                if any(s <= num <= e or (num == e and ins) for s, e in cdrs):
+                cdr_idx = _residue_cdr_index(r, tp, selected_cdrs)
+                if cdr_idx is not None:
                     mask[i] = 1
-                    for cdr_idx, (s, e) in enumerate(cdrs):
-                        if (s <= num <= e) or (num == e and ins):
-                            if tp == 'H':
-                                cdr_h_lengths[cdr_idx] += 1
-                            else:
-                                cdr_l_lengths[cdr_idx] += 1
-                            break
+                    if tp == 'H':
+                        cdr_h_lengths[cdr_idx] += 1
+                    else:
+                        cdr_l_lengths[cdr_idx] += 1
         masks.append(mask)
         lengths.append(len(res))
 
@@ -142,7 +251,8 @@ def generate_cdr_mask(model, chain_map):#三个维度顺序从H L AG
 
     return mask_tensor, masks[:len(order)], model, CDR_H, CDR_L, cdr_h_lengths, cdr_l_lengths
 
-def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L):
+def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L,selected_cdrs=None):#按pdb顺序来的
+    selected_cdrs = _normalize_selected_cdrs(selected_cdrs)
     if isinstance(atnames[0], list):
         atnames = atnames[0]
     N = len(atnames)
@@ -150,15 +260,10 @@ def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L):
     atom_idx = 0
     for chain in model:
         ctype = chain_map.get(chain.id, 'Ag')
-        cdrs = CDR_H if ctype == 'H' else CDR_L if ctype == 'L' else ()
         for res in chain.get_residues():
             if res.id[0].strip():
                 continue
-            rid, ins = res.id[1], res.id[2].strip()
-            in_cdr = ctype in ('H', 'L') and any(
-                (s <= rid <= e) or (rid == e and ins) or (rid == s and ins)
-                for s, e in cdrs
-            )
+            in_cdr = _residue_cdr_index(res, ctype, selected_cdrs) is not None
             for atom in res.get_atoms():
                 if atom_idx >= N:
                     break
@@ -170,7 +275,8 @@ def generate_mask_atom(chain_map,atnames,model,CDR_H,CDR_L):
 
     return mask_atom.unsqueeze(0)
 
-def build_madrax_inputs(chain_map, reordered_model, renum_model):
+def build_madrax_inputs(chain_map, reordered_model, renum_model, selected_cdrs=None):
+    selected_cdrs = _normalize_selected_cdrs(selected_cdrs)
     coords = []
     atnames = []
     mask_atom = []
@@ -179,18 +285,13 @@ def build_madrax_inputs(chain_map, reordered_model, renum_model):
         reordered_chain = reordered_model[chain_id]
         renum_chain = renum_model[chain_id]
         ctype = chain_map.get(chain_id, 'Ag')
-        cdrs = CDR_H if ctype == 'H' else CDR_L if ctype == 'L' else ()
 
         reordered_residues = list(reordered_chain.get_residues())
         renum_residues = list(renum_chain.get_residues())
         for reordered_res, renum_res in zip(reordered_residues, renum_residues):
-            rid, ins = reordered_res.id[1], reordered_res.id[2].strip()
             renum_rid = renum_res.id[1]
             resname = renum_res.resname.strip()
-            in_cdr = ctype in ('H', 'L') and any(
-                (s <= rid <= e) or (rid == e and ins) or (rid == s and ins)
-                for s, e in cdrs
-            )
+            in_cdr = _residue_cdr_index(reordered_res, ctype, selected_cdrs) is not None
             rc_coords = {}
 
             for atom in renum_res.get_atoms():
@@ -218,17 +319,24 @@ def build_madrax_inputs(chain_map, reordered_model, renum_model):
 
 
 def _preprocess_single_for_energy(args):  # 410
-    i, batch_id, save_path, t, structure_source = args  # 410
+    if len(args) == 5:
+        i, batch_id, save_path, t, structure_source = args  # 410
+        selected_chains = None
+        selected_cdrs = None
+    else:
+        i, batch_id, save_path, t, structure_source, selected_chains, selected_cdrs = args  # 410
     pdb_dir = os.path.join(save_path, f"batch{batch_id:02d}_sample{i:02d}_step{t:03d}.pdb")  # 410
     source = structure_source if structure_source is not None else pdb_dir  # 410
 
     chain_map = classify_chains(source)  # 410
+    chain_map = _apply_selected_chains(chain_map, selected_chains)  # 410
     chain_map, reordered_model, renum_model = reorder_and_renumber_pdb(source, chain_map)  # 410
-    cdr_mask, _, _, _, _, cdr_h_lengths, _ = generate_cdr_mask(reordered_model, chain_map)  # 410
-    coords, atnames, mask_atom = build_madrax_inputs(chain_map, reordered_model, renum_model)  # 410
+    cdr_mask, _, _, _, _, cdr_h_lengths, _ = generate_cdr_mask(reordered_model, chain_map, selected_cdrs)  # 410
+    coords, atnames, mask_atom = build_madrax_inputs(chain_map, reordered_model, renum_model, selected_cdrs)  # 410
 
     h1_len, h2_len, h3_len = cdr_h_lengths  # 410
     h3_start = h1_len + h2_len  # 410
+    cdr_ca_count = int(mask_atom[..., 0].sum().item())  # 410
 
     return {  # 410
         "index": i,
@@ -238,6 +346,7 @@ def _preprocess_single_for_energy(args):  # 410
         "mask_atom": mask_atom,
         "cdr_mask": cdr_mask,
         "h3_range": (h3_start, h3_start + h3_len),
+        "cdr_ca_count": cdr_ca_count,
     }
 
 
@@ -257,6 +366,8 @@ def run_energy_guidance(
     return_details=False,
     structure_sources=None,
     preprocess_workers=None,  # 410
+    selected_chains=None,  # 410
+    selected_cdrs=None,  # 410
 ):
     run_t0 = time.perf_counter()  # 410
     force_accum = []  # 410
@@ -269,7 +380,7 @@ def run_energy_guidance(
     worker_inputs = []  # 410
     for i in range(batch_size):  # 410
         structure_source = structure_sources[i] if structure_sources is not None else None  # 410
-        worker_inputs.append((i, batch_id, save_path, t, structure_source))  # 410
+        worker_inputs.append((i, batch_id, save_path, t, structure_source, selected_chains, selected_cdrs))  # 410
 
     if preprocess_workers is None:  # 410
         cpu_n = os.cpu_count() or 1  # 410
@@ -372,5 +483,4 @@ if __name__ == "__main__":
 
 
     
-
 

@@ -16,8 +16,6 @@ sampling:
     - L_CDR2
     - L_CDR3
   num_samples: 32
-  single: false
-  multi: true
   scope: 0.4
   energy_guidance:
     enabled: false

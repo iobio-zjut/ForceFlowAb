@@ -75,6 +75,14 @@ def get_energy_guidance_options(config):
     }
 
 
+def get_energy_guidance_cdrs_for_variant(variant):
+    if variant.get('cdrs') is not None:
+        return list(variant['cdrs'])
+    if variant.get('cdr') is not None:
+        return [variant['cdr']]
+    return None
+
+
 def append_moe_output_aa_rows(csv_path, rows):
     if len(rows) == 0:
         return
@@ -366,10 +374,11 @@ def main():
                     'pbar': True,
                     'sample_structure': config.sampling.sample_structure,
                     'sample_sequence': config.sampling.sample_sequence,
-                    'single': config.sampling.single,
-                    'multi': config.sampling.multi,
+                    'single': config.sampling.get('single', False),
+                    'multi': config.sampling.get('multi', True),
                     'scope': config.sampling.scope,
                     **get_energy_guidance_options(config),
+                    'energy_guidance_cdrs': get_energy_guidance_cdrs_for_variant(variant),
                     'trace_moe': moe_debug,
                     'trace_moe_step': 99,
                     'trace_moe_csv': moe_trace_csv,
