@@ -18,13 +18,13 @@ pdb_path=""
 heavy_chain=""
 light_chain=""
 batch_size="8"
-num_samples="32"
+num_samples="8"
 job_id=""
 jobs_root="./jobs"
 job_dir=""
 energy="false"
-energy_start="98"
-energy_end="99"
+energy_start="69"
+energy_end="79"
 energy_warmup="0"
 device="cuda"
 extra_tag=""
@@ -40,13 +40,13 @@ Options:
   --heavy ID             Heavy chain ID. Omit or use auto for auto-infer.
   --light ID|none        Light chain ID. Use none for nanobody/no light chain.
   --batch-size N         Batch size passed to design_for_pdb. Default: 8
-  --num-samples N        sampling.num_samples in generated config. Default: 32
+  --num-samples N        sampling.num_samples in generated config. Default: 8
   --job-id ID            Job ID. Default: job_YYYYmmdd_HHMMSS_PID
   --jobs-root DIR        Root directory for jobs. Default: ./jobs
   --out DIR              Explicit job directory. Default: JOBS_ROOT/JOB_ID
   --energy true|false    Enable energy guidance. Default: false
-  --energy-start N       Energy guidance start_step. Default: 98
-  --energy-end N         Energy guidance end_step. Default: 99
+  --energy-start N       Energy guidance start_step. Default: 69
+  --energy-end N         Energy guidance end_step. Default: 79
   --energy-warmup N      Energy guidance warmup_steps. Default: 0
   --device DEVICE        Model device. Default: cuda
   --tag TAG              Optional tag passed to design_for_pdb.
