@@ -57,8 +57,8 @@ class DesignJobRequest(BaseModel):
     batch_size: int = Field(8, ge=1)
     num_samples: int = Field(1, ge=1, le=8)
     energy: bool = False
-    energy_start: int = Field(98, ge=0)
-    energy_end: int = Field(99, ge=0)
+    energy_start: int = Field(69, ge=0)
+    energy_end: int = Field(79, ge=0)
     energy_warmup: int = Field(0, ge=0)
     device: str = "cuda"
     tag: Optional[str] = None
