@@ -34,7 +34,7 @@ dry_run="false"
 usage() {
   cat <<'EOF'
 Usage:
-  ./DP.sh --type nanobody|antibody --region h1|h2|h3|l1|l2|l3|all --pdb /path/input.pdb [options]
+  ./DP.sh --type nanobody|antibody --region h1|h2|h3|l1|l2|l3|all|h3,h2 --pdb /path/input.pdb [options]
 
 Options:
   --heavy ID             Heavy chain ID. Omit or use auto for auto-infer.
@@ -90,7 +90,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 ab_type="$(printf '%s' "$ab_type" | tr '[:upper:]' '[:lower:]')"
-region="$(printf '%s' "$region" | tr '[:upper:]' '[:lower:]')"
+region="$(printf '%s' "$region" | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
 
 case "$ab_type" in
   nanobody|nano|vhh) ab_type="nanobody" ;;
@@ -98,21 +98,53 @@ case "$ab_type" in
   *) echo "--type must be nanobody or antibody" >&2; exit 2 ;;
 esac
 
-case "$region" in
-  h1|h_cdr1|hcdr1|cdrh1) region="h1"; region_cdr="H_CDR1" ;;
-  h2|h_cdr2|hcdr2|cdrh2) region="h2"; region_cdr="H_CDR2" ;;
-  h3|h_cdr3|hcdr3|cdrh3) region="h3"; region_cdr="H_CDR3" ;;
-  l1|l_cdr1|lcdr1|cdrl1) region="l1"; region_cdr="L_CDR1" ;;
-  l2|l_cdr2|lcdr2|cdrl2) region="l2"; region_cdr="L_CDR2" ;;
-  l3|l_cdr3|lcdr3|cdrl3) region="l3"; region_cdr="L_CDR3" ;;
-  all|allcdr|all_cdr|multiple_cdrs) region="all" ;;
-  *) echo "--region must be one of h1, h2, h3, l1, l2, l3, all" >&2; exit 2 ;;
-esac
+region_cdrs=""
+normalized_regions=""
+IFS=',' read -r -a region_parts <<< "$region"
+for raw_region in "${region_parts[@]}"; do
+  part="$(printf '%s' "$raw_region" | xargs)"
+  case "$part" in
+    h1|h_cdr1|hcdr1|cdrh1) normalized_region="h1"; cdr_name="H_CDR1" ;;
+    h2|h_cdr2|hcdr2|cdrh2) normalized_region="h2"; cdr_name="H_CDR2" ;;
+    h3|h_cdr3|hcdr3|cdrh3) normalized_region="h3"; cdr_name="H_CDR3" ;;
+    l1|l_cdr1|lcdr1|cdrl1) normalized_region="l1"; cdr_name="L_CDR1" ;;
+    l2|l_cdr2|lcdr2|cdrl2) normalized_region="l2"; cdr_name="L_CDR2" ;;
+    l3|l_cdr3|lcdr3|cdrl3) normalized_region="l3"; cdr_name="L_CDR3" ;;
+    all|allcdr|all_cdr|multiple_cdrs) normalized_region="all"; cdr_name="" ;;
+    *) echo "--region must be all or a comma-separated list of h1, h2, h3, l1, l2, l3" >&2; exit 2 ;;
+  esac
 
-if [[ "$ab_type" == "nanobody" && "$region" =~ ^l[123]$ ]]; then
-  echo "Nanobody design does not support light-chain regions: $region" >&2
-  exit 2
-fi
+  if [[ "$normalized_region" == "all" && -n "$normalized_regions" ]]; then
+    echo "--region all cannot be combined with other CDR regions" >&2
+    exit 2
+  fi
+  if [[ "$normalized_region" != "all" && "$normalized_regions" == *"all"* ]]; then
+    echo "--region all cannot be combined with other CDR regions" >&2
+    exit 2
+  fi
+  if [[ "$ab_type" == "nanobody" && "$normalized_region" =~ ^l[123]$ ]]; then
+    echo "Nanobody design does not support light-chain regions: $normalized_region" >&2
+    exit 2
+  fi
+  if [[ ",$normalized_regions," == *",$normalized_region,"* ]]; then
+    continue
+  fi
+
+  if [[ -z "$normalized_regions" ]]; then
+    normalized_regions="$normalized_region"
+  else
+    normalized_regions="$normalized_regions,$normalized_region"
+  fi
+  if [[ -n "$cdr_name" ]]; then
+    if [[ -z "$region_cdrs" ]]; then
+      region_cdrs="$cdr_name"
+    else
+      region_cdrs="$region_cdrs,$cdr_name"
+    fi
+  fi
+done
+
+region="$normalized_regions"
 
 if ! [[ "$num_samples" =~ ^[0-9]+$ ]] || (( num_samples < 1 || num_samples > 8 )); then
   echo "--num-samples must be an integer between 1 and 8" >&2
@@ -232,11 +264,11 @@ with open(path, "w") as f:
     json.dump(data, f, indent=2)
 PY
 
-"$PYTHON" - "$base_config" "$run_config" "$num_samples" "$energy" "$energy_start" "$energy_end" "$energy_warmup" "$ab_type" "$region" "${region_cdr:-}" <<'PY'
+"$PYTHON" - "$base_config" "$run_config" "$num_samples" "$energy" "$energy_start" "$energy_end" "$energy_warmup" "$ab_type" "$region" "$region_cdrs" <<'PY'
 import sys
 import yaml
 
-base_config, run_config, num_samples, energy, start_step, end_step, warmup_steps, ab_type, region, region_cdr = sys.argv[1:]
+base_config, run_config, num_samples, energy, start_step, end_step, warmup_steps, ab_type, region, region_cdrs = sys.argv[1:]
 with open(base_config) as f:
     cfg = yaml.safe_load(f)
 
@@ -250,7 +282,7 @@ if region == "all":
     else:
         cfg["sampling"]["cdrs"] = ["H_CDR1", "H_CDR2", "H_CDR3", "L_CDR1", "L_CDR2", "L_CDR3"]
 else:
-    cfg["sampling"]["cdrs"] = [region_cdr]
+    cfg["sampling"]["cdrs"] = [cdr for cdr in region_cdrs.split(",") if cdr]
 
 eg = cfg["sampling"].setdefault("energy_guidance", {})
 eg["enabled"] = energy == "true"
