@@ -27,6 +27,9 @@ energy_start="69"
 energy_end="79"
 energy_warmup="0"
 device="cuda"
+relax="true"
+relax_pipeline="pyrosetta"
+relax_num_cpus="${RELAX_NUM_CPUS:-15}"
 extra_tag=""
 no_renumber="false"
 dry_run="false"
@@ -49,6 +52,9 @@ Options:
   --energy-end N         Energy guidance end_step. Default: 79
   --energy-warmup N      Energy guidance warmup_steps. Default: 0
   --device DEVICE        Model device. Default: cuda
+  --relax true|false     Run relax after design. Default: true
+  --relax-pipeline NAME  Relax pipeline. Default: pyrosetta
+  --relax-num-cpus N     CPUs for relax/run.py. Default: 15
   --tag TAG              Optional tag passed to design_for_pdb.
   --no-renumber          Pass --no_renumber to design_for_pdb.
   --dry-run              Create job files and print command, but do not run design.
@@ -81,6 +87,9 @@ while [[ $# -gt 0 ]]; do
     --energy-end) energy_end="$2"; shift 2 ;;
     --energy-warmup) energy_warmup="$2"; shift 2 ;;
     --device|-d) device="$2"; shift 2 ;;
+    --relax) relax="$(normalize_bool "$2")"; shift 2 ;;
+    --relax-pipeline) relax_pipeline="$2"; shift 2 ;;
+    --relax-num-cpus) relax_num_cpus="$2"; shift 2 ;;
     --tag|-t) extra_tag="$2"; shift 2 ;;
     --no-renumber) no_renumber="true"; shift ;;
     --dry-run) dry_run="true"; shift ;;
@@ -156,6 +165,16 @@ if ! [[ "$batch_size" =~ ^[0-9]+$ ]] || (( batch_size < 1 )); then
   exit 2
 fi
 
+if ! [[ "$relax_num_cpus" =~ ^[0-9]+$ ]] || (( relax_num_cpus < 1 )); then
+  echo "--relax-num-cpus must be a positive integer" >&2
+  exit 2
+fi
+
+case "$relax_pipeline" in
+  pyrosetta|openmm_pyrosetta|pyrosetta_fixbb) ;;
+  *) echo "--relax-pipeline must be pyrosetta, openmm_pyrosetta, or pyrosetta_fixbb" >&2; exit 2 ;;
+esac
+
 if [[ -z "$pdb_path" ]]; then
   echo "--pdb is required" >&2
   usage >&2
@@ -229,7 +248,7 @@ finish_failed() {
 }
 trap finish_failed ERR
 
-"$PYTHON" - "$request_json" "$job_id" "$ab_type" "$region" "$pdb_path" "$heavy_chain" "$light_chain" "$batch_size" "$num_samples" "$job_dir" "$energy" "$energy_start" "$energy_end" "$energy_warmup" "$device" "$extra_tag" "$no_renumber" "$dry_run" <<'PY'
+"$PYTHON" - "$request_json" "$job_id" "$ab_type" "$region" "$pdb_path" "$heavy_chain" "$light_chain" "$batch_size" "$num_samples" "$job_dir" "$energy" "$energy_start" "$energy_end" "$energy_warmup" "$device" "$relax" "$relax_pipeline" "$relax_num_cpus" "$extra_tag" "$no_renumber" "$dry_run" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -237,7 +256,7 @@ from datetime import datetime
 (
     path, job_id, ab_type, region, pdb_path, heavy, light, batch_size,
     num_samples, job_dir, energy, energy_start, energy_end, energy_warmup,
-    device, tag, no_renumber, dry_run
+    device, relax, relax_pipeline, relax_num_cpus, tag, no_renumber, dry_run
 ) = sys.argv[1:]
 data = {
     "job_id": job_id,
@@ -255,6 +274,9 @@ data = {
     "energy_end": int(energy_end),
     "energy_warmup": int(energy_warmup),
     "device": device,
+    "relax": relax == "true",
+    "relax_pipeline": relax_pipeline,
+    "relax_num_cpus": int(relax_num_cpus),
     "tag": tag or None,
     "no_renumber": no_renumber == "true",
     "dry_run": dry_run == "true",
@@ -350,6 +372,9 @@ echo "Base config: $base_config"
 echo "Run config: $run_config"
 echo "Results dir: $results_dir"
 echo "Energy guidance enabled: $energy"
+echo "Relax enabled: $relax"
+echo "Relax pipeline: $relax_pipeline"
+echo "Relax num CPUs: $relax_num_cpus"
 echo "Command:"
 printf ' %q' "${cmd[@]}"
 echo
@@ -362,4 +387,20 @@ fi
 
 write_status "running"
 "${cmd[@]}"
+
+if [[ "$relax" == "true" ]]; then
+  relax_cmd=(
+    "$PYTHON" diffab/tools/relax/run.py
+    --root "$results_dir"
+    --pipeline "$relax_pipeline"
+    --num-cpus "$relax_num_cpus"
+  )
+  echo
+  echo "Relax command:"
+  printf ' %q' "${relax_cmd[@]}"
+  echo
+  write_status "relaxing"
+  "${relax_cmd[@]}"
+fi
+
 write_status "succeeded" "0"
