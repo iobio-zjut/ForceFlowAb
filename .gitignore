@@ -15,10 +15,14 @@ configs/test/*
 !configs/test/multicdrs.yml
 !configs/test/nanobody.yml
 
-# Only publish the primary two-stage training configurations
-configs/train/*
-!configs/train/codesign_muti_rectflow_RF.yml
-!configs/train/codesign_muti_rectflow_finetune_RF.yml
+# Training code and private service wrappers are kept local
+train.py
+train_sec.py
+train_two_stage.sh
+configs/train/
+server/
+CASE.sh
+Back.sh
 
 # Model checkpoints and experiment outputs
 *.pt

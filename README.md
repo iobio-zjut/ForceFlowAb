@@ -1,6 +1,6 @@
 # ForceFlowAb
 
-ForceFlowAb is a research codebase for antibody sequence and structure design with rectified flow. The repository contains training and inference pipelines for single-CDR and multi-CDR design, optional mixture-of-experts (MoE) routing, energy-guided sampling, and antibody-antigen docking workflows.
+ForceFlowAb is a research codebase for antibody sequence and structure design with rectified flow. This public repository focuses on inference workflows for single-CDR and multi-CDR design, optional mixture-of-experts (MoE) routing, energy-guided sampling, and antibody-antigen docking.
 
 
 ## Features
@@ -8,7 +8,6 @@ ForceFlowAb is a research codebase for antibody sequence and structure design wi
 - Joint antibody sequence and backbone structure generation with rectified flow.
 - Single-CDR and multi-CDR design modes.
 - Configurable MoE routing with routed and shared experts.
-- Two-stage training for joint sequence-structure learning and sequence-focused fine-tuning.
 - Optional energy guidance during sampling.
 - Design from test sets, user-provided PDB structures, or HDOCK-generated antibody-antigen poses.
 
@@ -16,12 +15,9 @@ ForceFlowAb is a research codebase for antibody sequence and structure design wi
 
 ```text
 ForceFlowAb/
-|-- configs/                 # Training and inference configurations
+|-- configs/test/            # Inference configurations
 |-- diffab/                  # Models, datasets, geometry, sampling, and evaluation code
 |-- bin/                     # Optional external docking executables
-|-- train.py                 # Main training entry point
-|-- train_sec.py             # Second-stage training entry point
-|-- train_two_stage.sh       # Two-stage training wrapper
 |-- design_pdb.py            # Design from a PDB structure
 |-- design_testset.py        # Design on a configured test split
 |-- design_dock.py           # Docking followed by antibody design
@@ -43,52 +39,15 @@ The repository includes `data/sabdab_summary_all.tsv`, a snapshot of the SAbDab 
 
 The pretrained checkpoints are hosted on https://huggingface.co/SherrySherry123/ForceFlowAb
 
-## Training
-
-Run a single training stage with a YAML configuration:
-
-```bash
-python train.py configs/train/codesign_muti_rectflow_RF.yml
-```
-
-Useful options include:
-
-```text
---logdir PATH       Directory for logs and checkpoints (default: ./logs)
---device DEVICE     Training device (default: cuda)
---num_workers N     Data-loader workers (default: 8)
---resume PATH       Resume from a checkpoint
---finetune PATH     Fine-tune from a checkpoint
---debug             Disable persistent experiment logging
-```
-
-For the two-stage workflow:
-
-```bash
-ACTIVATE_ENV=0 \
-STAGE1_CONFIG=./configs/train/codesign_muti_rectflow_RF.yml \
-STAGE2_CONFIG=./configs/train/codesign_muti_rectflow_finetune_RF.yml \
-bash ./train_two_stage.sh
-```
-
-To resume the two-stage workflow:
-
-```bash
-RESUME_CKPT=/path/to/checkpoints/checkpoint_best.pt \
-RESUME_STAGE=auto \
-ACTIVATE_ENV=0 \
-bash ./train_two_stage.sh
-```
-
 ## Inference
 
-Inference behavior is controlled by files under `configs/test/`. Before running inference, set `model.checkpoint` in the selected configuration to a local trained checkpoint.
+Inference behavior is controlled by files under `configs/test/`. Before running inference, set `model.checkpoint` in the selected configuration to a local checkpoint. Training scripts and training configurations are not included in this public release.
 
 ### Design on a test split
 
 ```bash
 python design_testset.py 0 \
-  --config ./configs/test/moe/codesign_single_H3_0.4.yml \
+  --config ./configs/test/H3.yml \
   --out_root ./results
 ```
 
@@ -100,7 +59,7 @@ Here, `0` is the zero-based index of the structure in the configured test split.
 python design_pdb.py /path/to/antibody_antigen.pdb \
   --heavy H \
   --light L \
-  --config ./configs/test/moe/codesign_single_H3_0.4.yml \
+  --config ./configs/test/H3.yml \
   --out_root ./results
 ```
 
@@ -120,7 +79,7 @@ python design_dock.py \
   --light L \
   --cdrs H1 H2 H3 L1 L2 L3 \
   --epitope_sites A:991 A:992 \
-  --config ./configs/test/moe/codesign_multicdrs_0.4.yml \
+  --config ./configs/test/multicdrs.yml \
   --num_docks 10 \
   --out_root ./results
 ```
