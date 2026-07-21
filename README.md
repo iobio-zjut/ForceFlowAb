@@ -32,6 +32,7 @@ bash DesignTest.sh
 ### Design from a PDB structure
 
 ```bash
+cd ~/ForceFlowAb
 python design_pdb.py /path/to/antibody_antigen.pdb \
   --heavy H \
   --light L \
