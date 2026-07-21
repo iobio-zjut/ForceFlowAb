@@ -1,7 +1,8 @@
 # ForceFlowAb
 
-ForceFlowAb is a research codebase for antibody sequence and structure design with rectified flow. This public repository focuses on inference workflows for single-CDR and multi-CDR design, optional mixture-of-experts (MoE) routing, energy-guided sampling, and antibody-antigen docking.
+ForceFlowAb is a rectified-flow framework for antibody sequence and structure design that integrates mixture-of-experts (MoE) modeling and energy-guided sampling.
 
+## Pipeline of ForceFlowAb
 ![Pipeline of ForceFlowAb](assets/pipeline-of-forceflowab.jpg)
 
 ## Installation
@@ -22,14 +23,9 @@ The pretrained checkpoints are hosted on https://huggingface.co/SherrySherry123/
 ## Inference
 
 Inference behavior is controlled by files under `configs/test/`. Before running inference, set `model.checkpoint` in the selected configuration to a local checkpoint. 
-### Design on a test split
 
-```bash
-cd ~/ForceFlowAb
-bash DesignTest.sh
-```
 
-### Design from a PDB structure
+### Antibody-Antigen Complex
 
 ```bash
 cd ~/ForceFlowAb
