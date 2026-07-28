@@ -16,6 +16,18 @@ conda activate ForceFlowAb
 
 The repository includes `data/sabdab_summary_all.tsv`, a snapshot of the SAbDab index. Download the corresponding antibody structure files separately, place them under `data/`.
 
+### Optional: HDOCK
+
+HDOCK is only required for workflows that dock an antibody template to an antigen. Its executables are not redistributed with ForceFlowAb. Download `hdock` and `createpl` from the [official HDOCK site](http://huanglab.phys.hust.edu.cn/software/hdocklite/) and place them in `bin/`:
+
+```text
+bin/
+├── hdock
+└── createpl
+```
+
+Use of HDOCK is governed by its own terms and conditions.
+
 ## Train
 
 ```bash
@@ -50,4 +62,8 @@ python design_pdb.py /path/to/antibody_antigen.pdb \
 
 ## Citation
 
-If you use ForceFlowAb in academic work, please add the project citation here once the corresponding paper or preprint is available.
+If you use ForceFlowAb in academic work, please cite the archived software release listed in the repository's `CITATION.cff` file. The version-specific Zenodo DOI will be added after the first archival release.
+
+## License and third-party software
+
+ForceFlowAb-specific contributions are provided under the MIT License. Portions of this repository are derived from [DiffAb](https://github.com/luost26/diffab) and remain subject to the Apache License 2.0 and its attribution requirements. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`licenses/DiffAb-Apache-2.0.txt`](licenses/DiffAb-Apache-2.0.txt) for details.

@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use ForceFlowAb in academic work, please cite this software."
+title: "ForceFlowAb"
+version: 1.0.0
+type: software
+abstract: >-
+  ForceFlowAb is a physics-aware rectified-flow framework for antibody
+  complementarity-determining region sequence and structure design that
+  integrates mixture-of-experts modeling and energy-guided sampling.
+authors:
+  - given-names: Zonghui
+    family-names: Li
+    affiliation: "Zhejiang University of Technology"
+  - given-names: Zexin
+    family-names: Lv
+    affiliation: "Zhejiang University of Technology"
+  - given-names: Guijun
+    family-names: Zhang
+    affiliation: "Zhejiang University of Technology"
+repository-code: "https://github.com/iobio-zjut/ForceFlowAb"
+license: MIT
+keywords:
+  - antibody design
+  - complementarity-determining regions
+  - rectified flow
+  - flow matching
+  - mixture of experts
