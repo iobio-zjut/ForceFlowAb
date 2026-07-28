@@ -25,7 +25,7 @@ STAGE2_CONFIG=./configs/train/codesign_muti_rectflow_finetune_RF.yml \
 bash ./train_two_stage.sh
 ```
 
-## Pretrained Weights
+## Trained Weights
 
 The pretrained checkpoints are hosted on https://huggingface.co/SherrySherry123/ForceFlowAb
 
