@@ -20,6 +20,10 @@ server/
 CASE.sh
 Back.sh
 
+# Locally downloaded third-party executables
+bin/hdock
+bin/createpl
+
 # Model checkpoints and experiment outputs
 *.pt
 *.pth
