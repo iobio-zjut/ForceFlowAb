@@ -18,7 +18,7 @@ The repository includes `data/sabdab_summary_all.tsv`, a snapshot of the SAbDab 
 
 ### Optional: HDOCK
 
-HDOCK is only required for workflows that dock an antibody template to an antigen. Its executables are not redistributed with ForceFlowAb. Download `hdock` and `createpl` from the [official HDOCK site](http://huanglab.phys.hust.edu.cn/software/hdocklite/) and place them in `bin/`:
+HDOCK is only required for workflows that dock an antibody template to an antigen. Download `hdock` and `createpl` from the [official HDOCK site](http://huanglab.phys.hust.edu.cn/software/hdocklite/) and place them in `bin/`:
 
 ```text
 bin/
@@ -26,7 +26,6 @@ bin/
 └── createpl
 ```
 
-Use of HDOCK is governed by its own terms and conditions.
 
 ## Train
 
