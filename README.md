@@ -16,6 +16,15 @@ conda activate ForceFlowAb
 
 The repository includes `data/sabdab_summary_all.tsv`, a snapshot of the SAbDab index. Download the corresponding antibody structure files separately, place them under `data/`.
 
+## Train
+
+```bash
+ACTIVATE_ENV=0 \
+STAGE1_CONFIG=./configs/train/codesign_muti_rectflow_RF.yml \
+STAGE2_CONFIG=./configs/train/codesign_muti_rectflow_finetune_RF.yml \
+bash ./train_two_stage.sh
+```
+
 ## Pretrained Weights
 
 The pretrained checkpoints are hosted on https://huggingface.co/SherrySherry123/ForceFlowAb
