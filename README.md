@@ -61,3 +61,5 @@ python design_pdb.py /path/to/antibody_antigen.pdb \
 
 ## Citation
 
+## License and third-party software
+ForceFlowAb-specific contributions are provided under the MIT License. Portions of this repository are derived from DiffAb and remain subject to the Apache License 2.0 and its attribution requirements. See THIRD_PARTY_NOTICES.md and licenses/DiffAb-Apache-2.0.txt for details.
